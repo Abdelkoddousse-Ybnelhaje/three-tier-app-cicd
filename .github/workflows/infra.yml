@@ -1,4 +1,4 @@
-name: 'Terraform'
+name: 'Infra'
 
 on:
   pull_request:
@@ -42,6 +42,22 @@ jobs:
 
       - name: Apply Terraform Deployment
         run: terraform -chdir=infra/terraform apply -auto-approve -var="ssh_public_key=${{ secrets.PUBLIC_KEY }}"
+
+      - name: Get Terraform Output (VM IP)
+        run: |
+          pwd
+          terraform -chdir=infra/terraform output -raw vm_ip > infra/ansible/inventory.ini
+
+      - name: Install Ansible
+        run: sudo apt update && sudo apt install -y ansible
+
+      - name: Set up the private key
+        run: echo "${{ secrets.PRIVATE_KEY }}" > $HOME/my_google_key && chmod 600 $HOME/my_google_key 
+
+      - name: Run Ansible Playbook
+        run: |
+          cd infra/ansible
+          ansible-playbook -i inventory.ini docker_setup.yml
 
       - name: Cleanup Google Cloud credentials
         if: always()
